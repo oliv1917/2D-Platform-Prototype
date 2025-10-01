@@ -29,47 +29,13 @@ const player = {
   currentPlatform: null
 };
 
-const keys = {
-  right: false,
-  left: false,
-  up: false
-};
-
 const messageOverlay = document.getElementById('messageOverlay');
 const messageText = document.getElementById('messageText');
 const restartButton = document.getElementById('restartButton');
 const scoreValue = document.getElementById('scoreValue');
-const platformModal = document.getElementById('platformModal');
-const platformModalText = document.getElementById('platformModalText');
-const platformModalClose = document.getElementById('platformModalClose');
 let messageHideTimeout = null;
 let isGamePaused = false;
-let isModalOpen = false;
-let pauseReason = null;
 const goalMessage = 'Du klarede niveauet!';
-
-function pauseGame(reason) {
-  if (isGamePaused && pauseReason === reason) {
-    return;
-  }
-
-  isGamePaused = true;
-  pauseReason = reason;
-  player.dx = 0;
-  player.dy = 0;
-  keys.left = false;
-  keys.right = false;
-  keys.up = false;
-}
-
-function resumeGame(reason) {
-  if (pauseReason !== reason) {
-    return;
-  }
-
-  pauseReason = null;
-  isGamePaused = false;
-}
 
 function updateScoreDisplay() {
   if (!scoreValue) return;
@@ -145,56 +111,6 @@ function hidePlatformMessage() {
   }
 }
 
-function showPlatformModal(message) {
-  if (!platformModal || !platformModalText) return;
-
-  platformModalText.textContent = message || '';
-  platformModal.classList.add('visible');
-  platformModal.setAttribute('aria-hidden', 'false');
-  isModalOpen = true;
-  pauseGame('modal');
-
-  if (platformModalClose) {
-    platformModalClose.focus();
-  }
-}
-
-function hidePlatformModal() {
-  if (!platformModal || !isModalOpen) return;
-
-  platformModal.classList.remove('visible');
-  platformModal.setAttribute('aria-hidden', 'true');
-  if (platformModalText) {
-    platformModalText.textContent = '';
-  }
-  if (platformModalClose) {
-    platformModalClose.blur();
-  }
-  isModalOpen = false;
-  resumeGame('modal');
-}
-
-function onReachPlatform(platform) {
-  if (!platform) return;
-
-  if (platform.isGoal) {
-    handleGoalReached();
-    return;
-  }
-
-  if (typeof platform.onReach === 'function') {
-    hidePlatformMessage();
-    platform.onReach(platform);
-    return;
-  }
-
-  if (platform.message) {
-    showPlatformMessage(platform.message);
-  } else {
-    hidePlatformMessage();
-  }
-}
-
 function placePlayerAtStart() {
   player.x = 50;
   player.y = 0;
@@ -205,40 +121,29 @@ function placePlayerAtStart() {
 }
 
 function resetGame() {
-  hidePlatformModal();
+  placePlayerAtStart();
   hidePlatformMessage();
-  pauseReason = null;
   isGamePaused = false;
   keys.left = false;
   keys.right = false;
   keys.up = false;
-  placePlayerAtStart();
   resetCoins();
 }
 
 function handleGoalReached() {
-  if (pauseReason === 'goal') return;
+  if (isGamePaused) return;
 
-  pauseGame('goal');
+  isGamePaused = true;
+  player.dx = 0;
+  player.dy = 0;
+  keys.left = false;
+  keys.right = false;
+  keys.up = false;
   showGoalMessage();
 }
 
 if (restartButton) {
   restartButton.addEventListener('click', resetGame);
-}
-
-if (platformModalClose) {
-  platformModalClose.addEventListener('click', () => {
-    hidePlatformModal();
-  });
-}
-
-if (platformModal) {
-  platformModal.addEventListener('click', event => {
-    if (event.target === platformModal) {
-      hidePlatformModal();
-    }
-  });
 }
 
 // Platforme
@@ -248,36 +153,28 @@ const platforms = [
     y: 400,
     width: 800,
     height: 50,
-    onReach() {
-      showPlatformModal('Velkommen til banen!');
-    }
+    message: "Velkommen til banen!"
   },
   {
     x: 200,
     y: 320,
     width: 100,
     height: 20,
-    onReach() {
-      showPlatformModal('Godt hoppet!');
-    }
+    message: "Godt hoppet!"
   },
   {
     x: 400,
     y: 260,
     width: 100,
     height: 20,
-    onReach() {
-      showPlatformModal('Du er halvvejs.');
-    }
+    message: "Du er halvvejs."
   },
   {
     x: 600,
     y: 200,
     width: 100,
     height: 20,
-    onReach() {
-      showPlatformModal('Næsten i mål!');
-    }
+    message: "Næsten i mål!"
   },
   {
     x: 720,
@@ -289,21 +186,15 @@ const platforms = [
 ];
 
 // Input
+const keys = {
+  right: false,
+  left: false,
+  up: false
+};
 
 document.addEventListener('keydown', e => {
   if (isGamePaused) {
-    if (pauseReason === 'modal') {
-      if (e.code === 'KeyR') {
-        e.preventDefault();
-        resetGame();
-        return;
-      }
-
-      if (['Escape', 'Enter', 'Space'].includes(e.code)) {
-        e.preventDefault();
-        hidePlatformModal();
-      }
-    } else if (['Enter', 'Space', 'KeyR'].includes(e.code)) {
+    if (['Enter', 'Space', 'KeyR'].includes(e.code)) {
       e.preventDefault();
       resetGame();
     }
@@ -369,7 +260,13 @@ function update() {
   }
 
   if (landedOnPlatform && landedOnPlatform !== previousPlatform) {
-    onReachPlatform(landedOnPlatform);
+    if (landedOnPlatform.isGoal) {
+      handleGoalReached();
+    } else if (landedOnPlatform.message) {
+      showPlatformMessage(landedOnPlatform.message);
+    } else {
+      hidePlatformMessage();
+    }
   } else if (!landedOnPlatform && previousPlatform && !previousPlatform.isGoal) {
     hidePlatformMessage();
   }
@@ -383,7 +280,6 @@ function update() {
     // Falder ud af banen – reset
     placePlayerAtStart();
     hidePlatformMessage();
-    hidePlatformModal();
     resetCoins();
   }
 

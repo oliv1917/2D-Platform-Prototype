@@ -5,6 +5,15 @@ const ctx = canvas.getContext('2d');
 const gravity = 0.6;
 const friction = 0.8;
 
+// Samleobjekter
+const coins = [
+  { x: 250, y: 290, radius: 10, collected: false },
+  { x: 450, y: 230, radius: 10, collected: false },
+  { x: 630, y: 170, radius: 10, collected: false }
+];
+
+let score = 0;
+
 // Spiller
 const player = {
   x: 50,
@@ -23,9 +32,23 @@ const player = {
 const messageOverlay = document.getElementById('messageOverlay');
 const messageText = document.getElementById('messageText');
 const restartButton = document.getElementById('restartButton');
+const scoreValue = document.getElementById('scoreValue');
 let messageHideTimeout = null;
 let isGamePaused = false;
 const goalMessage = 'Du klarede niveauet!';
+
+function updateScoreDisplay() {
+  if (!scoreValue) return;
+  scoreValue.textContent = String(score);
+}
+
+function resetCoins() {
+  for (const coin of coins) {
+    coin.collected = false;
+  }
+  score = 0;
+  updateScoreDisplay();
+}
 
 function showPlatformMessage(message) {
   if (!messageOverlay || !messageText) return;
@@ -104,6 +127,7 @@ function resetGame() {
   keys.left = false;
   keys.right = false;
   keys.up = false;
+  resetCoins();
 }
 
 function handleGoalReached() {
@@ -256,6 +280,20 @@ function update() {
     // Falder ud af banen – reset
     placePlayerAtStart();
     hidePlatformMessage();
+    resetCoins();
+  }
+
+  for (const coin of coins) {
+    if (coin.collected) continue;
+    const closestX = Math.max(player.x, Math.min(coin.x, player.x + player.width));
+    const closestY = Math.max(player.y, Math.min(coin.y, player.y + player.height));
+    const dx = coin.x - closestX;
+    const dy = coin.y - closestY;
+    if (dx * dx + dy * dy <= coin.radius * coin.radius) {
+      coin.collected = true;
+      score += 1;
+      updateScoreDisplay();
+    }
   }
 }
 
@@ -268,6 +306,18 @@ function draw() {
   for (let p of platforms) {
     ctx.fillStyle = p.isGoal ? "#2ecc71" : "#444";
     ctx.fillRect(p.x, p.y, p.width, p.height);
+  }
+
+  // Coins
+  for (const coin of coins) {
+    if (coin.collected) continue;
+    ctx.beginPath();
+    ctx.fillStyle = "#f1c40f";
+    ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#f39c12";
+    ctx.stroke();
   }
 
   // Spiller
@@ -283,4 +333,5 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+resetCoins();
 loop();

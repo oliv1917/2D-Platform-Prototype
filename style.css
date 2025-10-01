@@ -21,8 +21,33 @@ canvas {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+  text-align: center;
 }
 
 #messageOverlay.visible {
   opacity: 1;
+}
+
+#messageOverlay.persistent {
+  pointer-events: auto;
+}
+
+#messageOverlay button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #ffd166;
+  color: #333;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#messageOverlay button:focus {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }

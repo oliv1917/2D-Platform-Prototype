@@ -1,0 +1,10 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #eef;
+  font-family: sans-serif;
+}
+canvas {
+  display: block;
+  background: #aaddff;
+}

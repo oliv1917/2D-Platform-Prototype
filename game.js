@@ -16,15 +16,75 @@ const player = {
   dy: 0,
   speed: 4,
   jumpForce: -12,
-  grounded: false
+  grounded: false,
+  currentPlatform: null
 };
+
+const messageOverlay = document.getElementById('messageOverlay');
+let messageHideTimeout = null;
+
+function showPlatformMessage(message) {
+  if (!messageOverlay) return;
+
+  if (!message) {
+    hidePlatformMessage();
+    return;
+  }
+
+  messageOverlay.textContent = message;
+  messageOverlay.classList.add('visible');
+
+  if (messageHideTimeout) {
+    clearTimeout(messageHideTimeout);
+  }
+
+  messageHideTimeout = setTimeout(() => {
+    hidePlatformMessage();
+  }, 3000);
+}
+
+function hidePlatformMessage() {
+  if (!messageOverlay) return;
+
+  if (messageHideTimeout) {
+    clearTimeout(messageHideTimeout);
+    messageHideTimeout = null;
+  }
+
+  messageOverlay.classList.remove('visible');
+  messageOverlay.textContent = '';
+}
 
 // Platforme
 const platforms = [
-  { x: 0, y: 400, width: 800, height: 50 },
-  { x: 200, y: 320, width: 100, height: 20 },
-  { x: 400, y: 260, width: 100, height: 20 },
-  { x: 600, y: 200, width: 100, height: 20 }
+  {
+    x: 0,
+    y: 400,
+    width: 800,
+    height: 50,
+    message: "Velkommen til banen!"
+  },
+  {
+    x: 200,
+    y: 320,
+    width: 100,
+    height: 20,
+    message: "Godt hoppet!"
+  },
+  {
+    x: 400,
+    y: 260,
+    width: 100,
+    height: 20,
+    message: "Du er halvvejs."
+  },
+  {
+    x: 600,
+    y: 200,
+    width: 100,
+    height: 20,
+    message: "Næsten i mål!"
+  }
 ];
 
 // Input
@@ -66,7 +126,10 @@ function update() {
   player.y += player.dy;
 
   // Kollision med platforme
+  const previousPlatform = player.currentPlatform;
   player.grounded = false;
+  let landedOnPlatform = null;
+
   for (let p of platforms) {
     if (
       player.x < p.x + p.width &&
@@ -79,9 +142,22 @@ function update() {
         player.y = p.y - player.height;
         player.dy = 0;
         player.grounded = true;
+        landedOnPlatform = p;
       }
     }
   }
+
+  if (landedOnPlatform && landedOnPlatform !== previousPlatform) {
+    if (landedOnPlatform.message) {
+      showPlatformMessage(landedOnPlatform.message);
+    } else {
+      hidePlatformMessage();
+    }
+  } else if (!landedOnPlatform && previousPlatform) {
+    hidePlatformMessage();
+  }
+
+  player.currentPlatform = landedOnPlatform;
 
   // Begræns til canvas
   if (player.x < 0) player.x = 0;

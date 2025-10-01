@@ -21,17 +21,27 @@ const player = {
 };
 
 const messageOverlay = document.getElementById('messageOverlay');
+const messageText = document.getElementById('messageText');
+const restartButton = document.getElementById('restartButton');
 let messageHideTimeout = null;
+let isGamePaused = false;
+const goalMessage = 'Du klarede niveauet!';
 
 function showPlatformMessage(message) {
-  if (!messageOverlay) return;
+  if (!messageOverlay || !messageText) return;
+
+  messageOverlay.classList.remove('persistent');
+
+  if (restartButton) {
+    restartButton.hidden = true;
+  }
 
   if (!message) {
     hidePlatformMessage();
     return;
   }
 
-  messageOverlay.textContent = message;
+  messageText.textContent = message;
   messageOverlay.classList.add('visible');
 
   if (messageHideTimeout) {
@@ -43,8 +53,26 @@ function showPlatformMessage(message) {
   }, 3000);
 }
 
+function showGoalMessage() {
+  if (!messageOverlay || !messageText) return;
+
+  if (messageHideTimeout) {
+    clearTimeout(messageHideTimeout);
+    messageHideTimeout = null;
+  }
+
+  messageText.textContent = goalMessage;
+  messageOverlay.classList.add('visible');
+  messageOverlay.classList.add('persistent');
+
+  if (restartButton) {
+    restartButton.hidden = false;
+    restartButton.focus();
+  }
+}
+
 function hidePlatformMessage() {
-  if (!messageOverlay) return;
+  if (!messageOverlay || !messageText) return;
 
   if (messageHideTimeout) {
     clearTimeout(messageHideTimeout);
@@ -52,7 +80,46 @@ function hidePlatformMessage() {
   }
 
   messageOverlay.classList.remove('visible');
-  messageOverlay.textContent = '';
+  messageOverlay.classList.remove('persistent');
+  messageText.textContent = '';
+
+  if (restartButton) {
+    restartButton.hidden = true;
+  }
+}
+
+function placePlayerAtStart() {
+  player.x = 50;
+  player.y = 0;
+  player.dx = 0;
+  player.dy = 0;
+  player.grounded = false;
+  player.currentPlatform = null;
+}
+
+function resetGame() {
+  placePlayerAtStart();
+  hidePlatformMessage();
+  isGamePaused = false;
+  keys.left = false;
+  keys.right = false;
+  keys.up = false;
+}
+
+function handleGoalReached() {
+  if (isGamePaused) return;
+
+  isGamePaused = true;
+  player.dx = 0;
+  player.dy = 0;
+  keys.left = false;
+  keys.right = false;
+  keys.up = false;
+  showGoalMessage();
+}
+
+if (restartButton) {
+  restartButton.addEventListener('click', resetGame);
 }
 
 // Platforme
@@ -84,6 +151,13 @@ const platforms = [
     width: 100,
     height: 20,
     message: "Næsten i mål!"
+  },
+  {
+    x: 720,
+    y: 160,
+    width: 60,
+    height: 20,
+    isGoal: true
   }
 ];
 
@@ -95,18 +169,32 @@ const keys = {
 };
 
 document.addEventListener('keydown', e => {
+  if (isGamePaused) {
+    if (['Enter', 'Space', 'KeyR'].includes(e.code)) {
+      e.preventDefault();
+      resetGame();
+    }
+    return;
+  }
+
   if (e.code === 'ArrowRight') keys.right = true;
   if (e.code === 'ArrowLeft') keys.left = true;
   if (e.code === 'ArrowUp') keys.up = true;
 });
 
 document.addEventListener('keyup', e => {
+  if (isGamePaused) return;
+
   if (e.code === 'ArrowRight') keys.right = false;
   if (e.code === 'ArrowLeft') keys.left = false;
   if (e.code === 'ArrowUp') keys.up = false;
 });
 
 function update() {
+  if (isGamePaused) {
+    return;
+  }
+
   // Bevægelse
   if (keys.left) player.dx = -player.speed;
   else if (keys.right) player.dx = player.speed;
@@ -148,12 +236,14 @@ function update() {
   }
 
   if (landedOnPlatform && landedOnPlatform !== previousPlatform) {
-    if (landedOnPlatform.message) {
+    if (landedOnPlatform.isGoal) {
+      handleGoalReached();
+    } else if (landedOnPlatform.message) {
       showPlatformMessage(landedOnPlatform.message);
     } else {
       hidePlatformMessage();
     }
-  } else if (!landedOnPlatform && previousPlatform) {
+  } else if (!landedOnPlatform && previousPlatform && !previousPlatform.isGoal) {
     hidePlatformMessage();
   }
 
@@ -164,10 +254,8 @@ function update() {
   if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
   if (player.y > canvas.height) {
     // Falder ud af banen – reset
-    player.x = 50;
-    player.y = 0;
-    player.dx = 0;
-    player.dy = 0;
+    placePlayerAtStart();
+    hidePlatformMessage();
   }
 }
 
@@ -178,7 +266,7 @@ function draw() {
 
   // Platforme
   for (let p of platforms) {
-    ctx.fillStyle = "#444";
+    ctx.fillStyle = p.isGoal ? "#2ecc71" : "#444";
     ctx.fillRect(p.x, p.y, p.width, p.height);
   }
 
@@ -188,7 +276,9 @@ function draw() {
 }
 
 function loop() {
-  update();
+  if (!isGamePaused) {
+    update();
+  }
   draw();
   requestAnimationFrame(loop);
 }
